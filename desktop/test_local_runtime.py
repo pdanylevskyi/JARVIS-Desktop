@@ -14,6 +14,13 @@ class RuntimeTests(unittest.TestCase):
     rt.download('https://example.com/model',p,len(data),digest,lambda *a:None,threading.Event())
     rt.download('https://example.com/model',p,len(data),digest,lambda *a:None,threading.Event())
     self.assertEqual(request.call_count,1);self.assertEqual(p.read_bytes(),data)
+ def test_completed_partial_is_verified_without_network(self):
+  data=b'completed';digest=hashlib.sha256(data).hexdigest()
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d)/'model.gguf';p.with_suffix('.gguf.part').write_bytes(data)
+   with patch('urllib.request.urlopen') as request:
+    rt.download('https://example.com',p,len(data),digest,lambda *a:None,threading.Event())
+    request.assert_not_called();self.assertEqual(p.read_bytes(),data)
  def test_bad_checksum_never_installed(self):
   with tempfile.TemporaryDirectory() as d:
    p=Path(d)/'model.gguf'

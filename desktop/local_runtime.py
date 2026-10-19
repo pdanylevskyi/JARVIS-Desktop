@@ -95,7 +95,8 @@ def ensure(emit,cancel):
         if not exe:raise ValueError('Runtime is missing. Re-run model installation.')
         with socket.socket() as sock:sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         _URL=f'http://127.0.0.1:{port}';_KEY=secrets.token_urlsafe(32)
-        profile=plan.get('profile',{});gpu=profile.get('unified') or profile.get('vram_gib',0)>0
+        profile=plan.get('profile',{});weight=plan['model']['bytes']
+        gpu=profile.get('unified') or weight+max(1024**3,weight*.15)<max(0,profile.get('vram_gib',0)*.85-1)*1024**3
         args=[str(exe),'-m',str(DATA/'models'/plan['model']['filename']),'--host','127.0.0.1','--port',str(port),'--api-key',_KEY,'--alias','jarvis-qwen3.8','-c',str(plan['context']),'-ngl','99' if gpu else '0','--no-kv-offload','--parallel','1','--jinja','--no-webui']
         env=os.environ.copy()
         if platform.system()=='Linux':env['LD_LIBRARY_PATH']=':'.join({str(p.parent) for p in folder.rglob('*.so*')})+':'+env.get('LD_LIBRARY_PATH','')

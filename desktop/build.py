@@ -7,7 +7,7 @@ root = Path(__file__).resolve().parent.parent
 dist = Path(os.environ.get('JARVIS_DIST_DIR', str(root/'dist')))
 subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--windowed',
     '--name', 'JARVIS', '--distpath', str(dist), '--paths', str(root),
-    '--collect-all', 'sounddevice', '--collect-all', 'webview',
+    '--collect-all', 'sounddevice', '--collect-all', 'webview', '--collect-all', 'ddgs',
     *(['--hidden-import','CoreLocation','--hidden-import','Quartz','--hidden-import','ApplicationServices','--hidden-import','pyautogui._pyautogui_osx','--collect-all','PIL'] if sys.platform=='darwin' else []),
     '--add-data', f'{root / "desktop/model_catalog.json"}:desktop',
     '--add-data', f'{root / "desktop/runtime_catalog.json"}:desktop',
