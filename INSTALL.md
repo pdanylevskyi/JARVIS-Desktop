@@ -34,6 +34,6 @@ Launch JARVIS Community from the application menu. Dependencies are installed by
 Settings are separate in `~/.jarvis-public`. Uninstalling the client preserves settings, server files and downloaded documents. Empty settings are intentional; no personal inventory, server credentials or model weights ship in installers.
 
 ## Downloads and checksums
-CI builds each installer on its native OS and runs the application's self-test. Download build artifacts from GitHub Actions while this is a preview. Each installer includes a `.sha256` checksum. Checksums detect accidental corruption; they do not replace publisher signing.
+CI builds each installer on its native OS and runs the application's self-test. Maintainers can download installers from the draft GitHub Release linked to the build. Drafts are not visible to public visitors until the maintainer publishes them. Each installer includes a `.sha256` checksum. Checksums detect accidental corruption; they do not replace publisher signing.
 
 Windows dependencies: https://pywebview.flowrl.com/guide/installation

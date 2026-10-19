@@ -6,7 +6,26 @@ on:
 permissions:
   contents: read
 jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.draft.outputs.tag }}
+    steps:
+      - id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          tag="preview-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          gh release create "$tag" --draft --target "$TARGET_SHA" --title "JARVIS 0.1.0 preview · build ${GITHUB_RUN_NUMBER}" --notes "Preview client installers. A compatible user-owned Ubuntu backend is required. See INSTALL.md. macOS and Windows publisher signing are not configured."
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
   build:
+    needs: prepare
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -14,6 +33,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       JARVIS_VERSION: 0.1.0
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -38,9 +58,9 @@ jobs:
           $p = Start-Process dist/JARVIS/JARVIS.exe -ArgumentList '--self-test' -Wait -PassThru
           if ($p.ExitCode -ne 0) { exit $p.ExitCode }
       - run: python packaging/package.py
-      - uses: actions/upload-artifact@v4
-        with:
-          name: JARVIS-${{ matrix.os }}-installer
-          path: release/*
-          if-no-files-found: error
-          retention-days: 30
+      - name: Upload installers to draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release upload "$RELEASE_TAG" release/* --clobber
