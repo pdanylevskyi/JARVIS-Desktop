@@ -289,6 +289,9 @@ def main(self_test=False):
     try:
      if sys.platform=='darwin':
       from . import location  # Import only; never request location in self-test.
+     for _ in range(40):
+      if window.evaluate_js('window.reactorReady === true'):break
+      time.sleep(.25)
      assert window.evaluate_js('window.reactorReady === true')
      assert window.evaluate_js('document.querySelectorAll("[data-mode]").length')==3
      assert window.evaluate_js('document.querySelectorAll(".module-card").length')==6

@@ -4,7 +4,28 @@
  const gl=canvas.getContext('webgl',{alpha:false,antialias:false,powerPreference:'low-power'});
  let target=0,morph=0,level=0,impulse=0,recording=false,active=false;
  window.reactor={state(s){recording=s==='recording';active=s==='generating'||s==='speaking';target=active?1:0;},audio(v){level=Math.min(1,Math.max(0,v));},pulse(){impulse=Math.min(1,impulse+.22);}};
- if(!gl){document.getElementById('core-detail').textContent='WebGL недоступний';window.reactorReady=false;return;}
+ if(!gl){
+  const ctx=canvas.getContext('2d');
+  if(!ctx){window.reactorReady=false;return;}
+  document.getElementById('core-detail').textContent='Енергоощадна графіка · Canvas';
+  canvas.dataset.renderer='canvas2d';let last=0;
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  function fallback(now){requestAnimationFrame(fallback);if(document.hidden||now-last<40)return;last=now;
+   const dpr=Math.min(devicePixelRatio||1,2),w=Math.round(canvas.clientWidth*dpr),h=Math.round(canvas.clientHeight*dpr);
+   if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+   ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);morph+=(target-morph)*.12;impulse*=.85;
+   const t=reduced.matches?0:now*.0003,r=Math.min(w,h)*.30;
+   for(let i=0;i<600;i++){
+    const a=i/600*Math.PI*2,sy=1-2*(i+.5)/600,sr=Math.sqrt(1-sy*sy),sa=i*2.39996+t;
+    const wave=recording?level*Math.sin(a*9+t*12)*.12:0;
+    const x=(1-morph)*Math.cos(a)*(1+wave)+morph*sr*Math.cos(sa);
+    const y=(1-morph)*Math.sin(a)*(1+wave)+morph*sy;
+    ctx.fillStyle=i%3?'#139bd9':'#62ecff';ctx.globalAlpha=.45+.5*(Math.sin(a*11+t)+1)/2;
+    ctx.beginPath();ctx.arc(w/2+x*r*(1+impulse*.04),h*.44+y*r,1.1*dpr,0,Math.PI*2);ctx.fill();
+   }ctx.globalAlpha=1;
+  }
+  requestAnimationFrame(fallback);window.reactorReady=true;return;
+ }
  const vs=`attribute vec3 sphere;attribute vec2 ring;attribute float seed;uniform float time,morph,level,pulse,recording,aspect,dpr;varying float glow;
  void main(){float a=seed*6.283185;float wave=sin(a*7.+time*4.)*.055+cos(a*13.-time*3.)*.025;
  vec3 r=vec3(ring*(1.+recording*level*(.34+wave*4.)+sin(time*1.5+a)*.008),recording*level*sin(a*5.+time*3.)*.18);

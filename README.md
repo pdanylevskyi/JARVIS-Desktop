@@ -23,6 +23,8 @@ python packaging/package.py
 
 Windows packaging additionally requires Inno Setup 6; Linux needs dpkg-deb and the GUI libraries listed in the workflow. CI builds all three platforms and saves installers with SHA-256 files in a draft GitHub Release. No automatic release publication occurs.
 
+On machines without WebGL, the reactor automatically uses a lightweight Canvas renderer.
+
 ## Preview limitations
 - A compatible Ubuntu backend is required; this is not an all-in-one model installer.
 - macOS preview signing is ad-hoc, Windows signing is not yet configured. Publisher certificates/notarization are needed before a frictionless public launch.
