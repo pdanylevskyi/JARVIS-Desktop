@@ -20,7 +20,7 @@ jobs:
           TARGET_SHA: ${{ github.sha }}
         run: |
           tag="preview-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          gh release create "$tag" --draft --target "$TARGET_SHA" --title "JARVIS 0.2.0 preview · build ${GITHUB_RUN_NUMBER}" --notes "Preview client installers. A compatible user-owned Ubuntu backend is required. See INSTALL.md. macOS and Windows publisher signing are not configured."
+          gh release create "$tag" --draft --target "$TARGET_SHA" --title "JARVIS 0.3.0 preview · build ${GITHUB_RUN_NUMBER}" --notes "Local text-model installer with optional SSH backend. See INSTALL.md. macOS and Windows publisher signing are not configured."
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
   build:
     needs: prepare
@@ -32,7 +32,7 @@ jobs:
         os: [macos-14, windows-2022, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     env:
-      JARVIS_VERSION: 0.2.0
+      JARVIS_VERSION: 0.3.0
       RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
@@ -40,12 +40,13 @@ jobs:
         with:
           python-version: '3.12'
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libportaudio2 xvfb libegl1 libopengl0 libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libnss3 libasound2
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2 xvfb libegl1 libopengl0 libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libnss3 libasound2 libvulkan1
       - if: runner.os == 'Windows'
         run: choco install innosetup -y --no-progress
       - run: python -m pip install -r desktop/requirements.txt pyinstaller==6.20.0
       - run: python packaging/check_public.py
-      - run: python -m unittest desktop.test_client desktop.test_webapp desktop.test_hardware
+      - run: python -m unittest desktop.test_client desktop.test_webapp desktop.test_hardware desktop.test_local_runtime
+      - run: python packaging/smoke_runtime.py
       - run: python desktop/build.py
       - if: runner.os == 'Linux'
         run: xvfb-run -a dist/JARVIS/JARVIS --self-test

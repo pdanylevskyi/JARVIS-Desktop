@@ -10,7 +10,7 @@ class Bridge:
   DATA.mkdir(exist_ok=True)
   self._settings={'host':'','key':str(Path.home()/'.ssh/id_ed25519')}
   if CONFIG.exists():
-   old=json.loads(CONFIG.read_text());self._settings.update({k:old[k] for k in ('host','key') if k in old})
+   old=json.loads(CONFIG.read_text());self._settings.update({k:old[k] for k in ('host','key','mode') if k in old})
   self._window=None;self._events=queue.Queue();self._cancel=threading.Event();self._closed=threading.Event()
   self._busy=False;self._connected=False;self._history=[];self._image=None;self._attachments=[];self._roots=[]
   self._recording=None;self._pcm=[];self._level=0.;self._started=0.;self._lock=threading.Lock()
@@ -71,13 +71,35 @@ class Bridge:
   u=urlsplit(url);host=u.hostname or ''
   if u.scheme!='https' or not (host.endswith('.bbc.com') or host.endswith('.bbc.co.uk') or host=='open-meteo.com'):raise ValueError('Непідтримуване джерело.')
   webbrowser.open(url);return True
- def bootstrap(self):return {'settings':self._settings,'roots':self._roots,'needs_setup':not (DATA/'model-plan.json').exists()}
+ def bootstrap(self):return {'settings':self._settings,'roots':self._roots,'needs_setup':not (DATA/'model-plan.json').exists(),'local_mode':self._settings.get('mode')=='local'}
  def configure(self,host,key):
   if self._busy:raise ValueError('Дочекайтеся відповіді.')
   if not isinstance(host,str) or host.startswith('-') or '@' not in host or any(c.isspace() for c in host):raise ValueError('Некоректна SSH-адреса.')
   if not isinstance(key,str) or not Path(key).expanduser().is_file():raise ValueError('Файл SSH-ключа не знайдено.')
+  self._emit('capabilities',{'local_text':False})
   self._settings={'host':host,'key':key};CONFIG.write_text(json.dumps(self._settings,ensure_ascii=False,indent=2))
   self._connected=False;return self._launch({'operation':'status'})
+ def use_local(self):
+  self._settings['mode']='local';CONFIG.write_text(json.dumps(self._settings))
+  return self._launch({'operation':'status'})
+ def install_local(self):
+  with self._lock:
+   if self._busy:return False
+   self._busy=True
+  self._cancel.clear();self._emit('busy',True)
+  def work():
+   try:
+    from .local_runtime import install,stop
+    install(self._emit,self._cancel)
+    from .local_runtime import ROOT
+    self._roots=[str(ROOT)];self._emit('roots',self._roots)
+    self._settings['mode']='local';CONFIG.write_text(json.dumps(self._settings))
+    self._connected=True;self._emit('capabilities',{'local_text':True});self._emit('connected',True);self._emit('status','Local model ready')
+   except Exception as exc:
+    from .local_runtime import stop
+    stop();self._emit('error',str(exc))
+   finally:self._busy=False;self._emit('busy',False)
+  threading.Thread(target=work,daemon=True).start();return True
  def scan_hardware(self):
   from .hardware import scan
   return scan()
@@ -233,6 +255,7 @@ class Bridge:
      return
     if kind=='saved' and value not in downloads:downloads.append(value)
     if kind=='roots':self._roots=value
+    if kind=='connected':self._connected=value
     if kind=='status' and value.startswith('Ubuntu підключено'):self._connected=True;self._emit('connected',True)
     if kind=='error':failed=True
     if kind!='done':self._emit(kind,value)
@@ -295,6 +318,8 @@ class Bridge:
      if self._closed.is_set():break
  def _close(self):
   self._closed.set();self._cancel.set();self._approval.set()
+  from .local_runtime import stop
+  stop()
   if self._recording:self._recording.stop();self._recording.close();self._recording=None
 
 def main(self_test=False):

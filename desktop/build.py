@@ -10,6 +10,7 @@ subprocess.run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '
     '--collect-all', 'sounddevice', '--collect-all', 'webview',
     *(['--hidden-import','CoreLocation','--hidden-import','Quartz','--hidden-import','ApplicationServices','--hidden-import','pyautogui._pyautogui_osx','--collect-all','PIL'] if sys.platform=='darwin' else []),
     '--add-data', f'{root / "desktop/model_catalog.json"}:desktop',
+    '--add-data', f'{root / "desktop/runtime_catalog.json"}:desktop',
     '--exclude-module', 'webview.__pyinstaller',
     '--icon', str(root/'desktop/assets'/('jarvis.icns' if sys.platform=='darwin' else 'jarvis.ico' if sys.platform=='win32' else 'jarvis.png')),
     '--add-data', f'{root / "desktop/assets/jarvis.png"}:desktop/assets',

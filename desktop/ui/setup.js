@@ -3,7 +3,7 @@
  const button=document.getElementById('model-setup');
  async function open(){
   const box=document.createElement('div'),note=document.createElement('p');
-  note.textContent='Enter the specs of the computer that will run the model. This release is an SSH client; scanning this computer does not install an AI server. Public default: 50,000 context tokens.';
+  note.textContent='Enter the specs of the computer that will run the model. Choose Install and start to download verified weights and run the model on this computer. SSH remains available for advanced server features. Public default: 50,000 context tokens.';
   const ram=document.createElement('input'),vram=document.createElement('input'),unified=document.createElement('input');
   for(const i of [ram,vram]){i.type='number';i.min=0;i.max=2048;i.step=.5;}
   let detected=null;
@@ -21,8 +21,9 @@
     const card=document.createElement('p'),link=document.createElement('button');link.type='button';link.textContent=(i===0?'Recommended · ':'')+m.name+' · '+m.quant;
     link.onclick=()=>invoke('open_model_source',m.repository,m.filename);
     const context=document.createElement('input');context.type='number';context.min=16384;context.max=m.estimated_max_context;context.value=m.context;
+    const install=document.createElement('button');install.type='button';install.textContent='Install and start locally';install.onclick=async()=>{const n=Number(context.value);if(!Number.isInteger(n)||n<16384||n>m.estimated_max_context)return error('Invalid context size');if(await invoke('save_model_plan',m.repository,m.filename,n,profile())){document.getElementById('modal').close();window.jarvisDashboard.open('chat');await invoke('install_local');}};
     const save=document.createElement('button');save.type='button';save.textContent='Save plan';save.onclick=async()=>{const n=Number(context.value);if(!Number.isInteger(n)||n<16384||n>m.estimated_max_context)return error('Invalid context size');if(await invoke('save_model_plan',m.repository,m.filename,n,profile())){document.getElementById('modal').close();connect();}};
-    card.append(link,document.createElement('br'),document.createTextNode(m.weights_gib+' GiB weights · '+m.mode+' · estimated maximum '+m.estimated_max_context+' tokens'),context,save);results.append(card);
+    card.append(link,document.createElement('br'),document.createTextNode(m.weights_gib+' GiB weights · '+m.mode+' · estimated maximum '+m.estimated_max_context+' tokens'),context,install,save);results.append(card);
    }
   };
   dialog('MODEL SETUP',box,()=>document.getElementById('modal').close(),'Close');

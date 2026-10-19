@@ -29,10 +29,10 @@ def completion(url, messages, emit, cancelled=None, options=None):
             'temperature': 0.3, 'timings_per_token': True, 'reasoning_budget_tokens': thinking,
             'chat_template_kwargs': {'enable_thinking': thinking>0}}
     from .context_window import fit
-    body['max_tokens']=fit(url,messages,TOOLS,body['max_tokens'],emit)
+    body['max_tokens']=fit(url,messages,TOOLS,body['max_tokens'],emit,options.get('api_key'))
     body['reasoning_budget_tokens']=min(thinking,body['max_tokens']//2)
     req = urllib.request.Request(url.rstrip('/') + '/v1/chat/completions',
-                                 json.dumps(body).encode(), {'Content-Type': 'application/json'})
+                                 json.dumps(body).encode(), {'Content-Type': 'application/json',**({'Authorization':'Bearer '+options['api_key']} if options.get('api_key') else {})})
     content, calls, finish = '', {}, None
     emit('status','Модель готує наступний крок…')
     emit('phase','Підготовка відповіді…')

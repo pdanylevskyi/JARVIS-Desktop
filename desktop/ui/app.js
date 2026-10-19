@@ -1,5 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id),reactor=window.reactor;
+let localTextOnly=false;
 let mode='normal',busy=false,recording=false,connected=false,current=null,pending='',showText=true,roots=[],memoryBefore='',settings={},generating=false;
 let audioContext=null,audioSources=[],audioEnd=0,audioEpoch=0,audioChain=Promise.resolve(),speaking=false;
 let autoSend=false,confirmation=null;
@@ -44,9 +45,10 @@ window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
  case 'text':if(value){pending+=value;generating=true;state();}break;
  case 'answer_reset':pending='';if(current&&showText)current.textContent='';break;
  case 'generation_done':generating=false;state();break;
- case 'busy':busy=value;undoButton.disabled=busy;$('send').disabled=busy;$('attach').disabled=busy;$('new').disabled=busy;$('mic-button').disabled=busy;if(!busy){generating=false;status('Готово');if(autoSend){autoSend=false;send();}}state();break;
+ case 'busy':busy=value;undoButton.disabled=busy;$('send').disabled=busy;$('attach').disabled=busy;$('new').disabled=busy;$('mic-button').disabled=busy||localTextOnly;if(!busy){generating=false;status('Готово');if(autoSend){autoSend=false;send();}}state();break;
  case 'context_settings':contextDialog(value);break;
  case 'context_changed':status('Context: '+value.context+' tokens');break;
+ case 'capabilities':localTextOnly=value.local_text;for(const id of ['mic-button','mac-agent','speak','memory','folders'])$(id).disabled=localTextOnly;if(localTextOnly){$('speak').checked=false;$('mac-agent').checked=false;}break;
  case 'metrics':$('token-speed').textContent=value.tokens_per_second+' tok/s';break;
  case 'phase':$('core-detail').textContent=value;status(value);break;
  case 'status':status(value);$('core-detail').textContent=value;break;
@@ -69,7 +71,7 @@ window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
  case 'stop_audio':stopAudio();break;
  case 'error':case 'warning':error(value);break;
  }};};
-window.addEventListener('pywebviewready',async()=>{const boot=await invoke('bootstrap');if(boot){settings=boot.settings;roots=boot.roots;if(boot.needs_setup)setTimeout(()=>window.jarvisSetup?.(),100);}status('Системи готові · підключіть Ubuntu');});
+window.addEventListener('pywebviewready',async()=>{const boot=await invoke('bootstrap');if(boot){settings=boot.settings;roots=boot.roots;if(boot.local_mode)invoke('use_local');else if(boot.needs_setup)setTimeout(()=>window.jarvisSetup?.(),100);}status('Системи готові · підключіть Ubuntu');});
 
 $('tools-catalog').onclick=async()=>{const tools=await invoke('tool_catalog');if(!tools)return;const list=document.createElement('div');for(const t of tools){const p=document.createElement('p');p.className='note';p.textContent=t.name+' — '+t.description;list.append(p);}dialog('ІНСТРУМЕНТИ JARVIS · '+tools.length,list,()=> $('modal').close(),'Закрити');};
 

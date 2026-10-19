@@ -12,9 +12,9 @@ def retain(history, limit=2_000_000):
     while result and result[0].get('role')!='user':result.pop(0)
     return result
 
-def fit(url,messages,tools,reserve,emit):
+def fit(url,messages,tools,reserve,emit,api_key=None):
     def request(path,data=None):
-        req=urllib.request.Request(url.rstrip('/')+path,data=None if data is None else json.dumps(data).encode(),headers={'Content-Type':'application/json'})
+        req=urllib.request.Request(url.rstrip('/')+path,data=None if data is None else json.dumps(data).encode(),headers={'Content-Type':'application/json',**({'Authorization':'Bearer '+api_key} if api_key else {})})
         with urllib.request.urlopen(req,timeout=30) as response:return json.load(response)
     capacity=request('/props')['default_generation_settings']['n_ctx']
     reserve=min(reserve,max(512,capacity//3))

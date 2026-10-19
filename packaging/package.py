@@ -2,7 +2,7 @@
 import hashlib,os,platform,re,shutil,subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-VERSION=os.environ.get('JARVIS_VERSION','0.2.0')
+VERSION=os.environ.get('JARVIS_VERSION','0.3.0')
 if not re.fullmatch(r'\d+\.\d+\.\d+',VERSION):raise ValueError('Version must be X.Y.Z')
 OUT=ROOT/'release';OUT.mkdir(exist_ok=True)
 
@@ -30,7 +30,7 @@ def main():
   icons=stage/'usr/share/icons/hicolor/512x512/apps';icons.mkdir(parents=True)
   shutil.copy2(ROOT/'desktop/assets/jarvis.png',icons/'jarvis-community.png')
   debarch={'x86_64':'amd64','aarch64':'arm64'}[arch]
-  (stage/'DEBIAN/control').write_text(f'Package: jarvis-community\nVersion: {VERSION}\nArchitecture: {debarch}\nMaintainer: JARVIS Community\nDepends: openssh-client, libportaudio2, libegl1, libopengl0, libxcb-cursor0, libxkbcommon-x11-0, libxcb-icccm4, libxcb-keysyms1, libxcb-shape0, libnss3, libasound2\nDescription: JARVIS desktop client for a user-owned Ubuntu AI server\n')
+  (stage/'DEBIAN/control').write_text(f'Package: jarvis-community\nVersion: {VERSION}\nArchitecture: {debarch}\nMaintainer: JARVIS Community\nDepends: openssh-client, libportaudio2, libegl1, libopengl0, libxcb-cursor0, libxkbcommon-x11-0, libxcb-icccm4, libxcb-keysyms1, libxcb-shape0, libnss3, libasound2, libvulkan1\nDescription: JARVIS desktop client for a user-owned Ubuntu AI server\n')
   subprocess.run(['dpkg-deb','--root-owner-group','-Zgzip','-z6','--build',str(stage),str(OUT/f'JARVIS-{VERSION}-linux-{debarch}.deb')],check=True)
   shutil.rmtree(stage)
  else:raise RuntimeError('Unsupported platform')

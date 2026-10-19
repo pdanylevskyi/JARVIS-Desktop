@@ -9,6 +9,15 @@ COMMAND = 'cd ~/gemma && exec .desktop-server-venv/bin/python -u -m desktop.work
 
 
 def request(settings, payload, emit, cancelled=None):
+    if settings.get('mode')=='local':
+        from .local_runtime import request as local_request,stop
+        done=threading.Event()
+        def watch():
+            while not done.wait(.1):
+                if cancelled is not None and cancelled.is_set():stop();return
+        threading.Thread(target=watch,daemon=True).start()
+        try:return local_request(payload,emit,cancelled)
+        finally:done.set()
     host = settings['host']
     if host.startswith('-') or '@' not in host or any(c.isspace() for c in host):
         raise ValueError('Некоректна SSH-адреса.')
