@@ -71,15 +71,37 @@ class Bridge:
   u=urlsplit(url);host=u.hostname or ''
   if u.scheme!='https' or not (host.endswith('.bbc.com') or host.endswith('.bbc.co.uk') or host=='open-meteo.com'):raise ValueError('Непідтримуване джерело.')
   webbrowser.open(url);return True
- def bootstrap(self):return {'settings':self._settings,'roots':self._roots}
+ def bootstrap(self):return {'settings':self._settings,'roots':self._roots,'needs_setup':not (DATA/'model-plan.json').exists()}
  def configure(self,host,key):
   if self._busy:raise ValueError('Дочекайтеся відповіді.')
-  import shutil
-  if not shutil.which('ssh'):raise ValueError('Встановіть OpenSSH Client у додаткових компонентах Windows або через менеджер пакетів Linux.')
   if not isinstance(host,str) or host.startswith('-') or '@' not in host or any(c.isspace() for c in host):raise ValueError('Некоректна SSH-адреса.')
   if not isinstance(key,str) or not Path(key).expanduser().is_file():raise ValueError('Файл SSH-ключа не знайдено.')
   self._settings={'host':host,'key':key};CONFIG.write_text(json.dumps(self._settings,ensure_ascii=False,indent=2))
   self._connected=False;return self._launch({'operation':'status'})
+ def scan_hardware(self):
+  from .hardware import scan
+  return scan()
+ def recommend_models(self,profile):
+  from .hardware import recommend
+  return recommend(profile)
+ def open_model_source(self,repository,filename):
+  import webbrowser
+  from urllib.parse import quote
+  catalog=json.loads(Path(__file__).with_name('model_catalog.json').read_text())['models']
+  model=next((m for m in catalog if m['repository']==repository and m['filename']==filename),None)
+  if not model:raise ValueError('Unknown catalog model.')
+  webbrowser.open('https://huggingface.co/'+repository+'/blob/'+model['revision']+'/'+quote(filename));return True
+ def save_model_plan(self,repository,filename,context,profile):
+  from .hardware import recommend
+  models=recommend(profile)['models'];model=next((m for m in models if m['repository']==repository and m['filename']==filename),None)
+  if not model or type(context) is not int or not 16384<=context<=model['estimated_max_context']:raise ValueError('Invalid model plan.')
+  (DATA/'model-plan.json').write_text(json.dumps({'model':model,'context':context,'profile':profile},indent=2));return True
+ def context_settings(self):
+  if not self._connected:raise ValueError('Connect to Ubuntu first.')
+  return self._launch({'operation':'context_info'})
+ def set_context(self,value):
+  if not self._connected:raise ValueError('Connect to Ubuntu first.')
+  return self._launch({'operation':'set_context','context':int(value)})
  def choose_key(self):
   import webview
   result=self._window.create_file_dialog(webview.FileDialog.OPEN,allow_multiple=False)
@@ -272,7 +294,7 @@ class Bridge:
     except Exception:
      if self._closed.is_set():break
  def _close(self):
-  self._closed.set();self._cancel.set()
+  self._closed.set();self._cancel.set();self._approval.set()
   if self._recording:self._recording.stop();self._recording.close();self._recording=None
 
 def main(self_test=False):
@@ -289,9 +311,6 @@ def main(self_test=False):
     try:
      if sys.platform=='darwin':
       from . import location  # Import only; never request location in self-test.
-     for _ in range(40):
-      if window.evaluate_js('window.reactorReady === true'):break
-      time.sleep(.25)
      assert window.evaluate_js('window.reactorReady === true')
      assert window.evaluate_js('document.querySelectorAll("[data-mode]").length')==3
      assert window.evaluate_js('document.querySelectorAll(".module-card").length')==6

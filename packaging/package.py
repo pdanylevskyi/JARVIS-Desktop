@@ -2,7 +2,7 @@
 import hashlib,os,platform,re,shutil,subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-VERSION=os.environ.get('JARVIS_VERSION','0.1.0')
+VERSION=os.environ.get('JARVIS_VERSION','0.2.0')
 if not re.fullmatch(r'\d+\.\d+\.\d+',VERSION):raise ValueError('Version must be X.Y.Z')
 OUT=ROOT/'release';OUT.mkdir(exist_ok=True)
 

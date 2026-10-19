@@ -10,3 +10,5 @@ pyobjc-framework-ApplicationServices>=11,<13; sys_platform == "darwin"
 reportlab>=4.4,<5
 
 pyobjc-framework-CoreLocation>=11,<13; sys_platform == "darwin"
+
+psutil>=7,<8

@@ -37,3 +37,11 @@ No usage analytics. AI requests, microphone recordings and user-attached files g
 
 ## Third-party components
 Dependency licenses continue to apply. The bundled DejaVu font license is in `desktop/assets/LICENSE_DEJAVU`. Model licenses are separate; no weights are redistributed here. This preview does not grant an additional open-source license to the application code.
+
+## Hardware setup (0.2.0)
+
+First launch offers a model-planning wizard: enter RAM/VRAM manually or scan this computer. NVIDIA uses nvidia-smi; Linux AMD uses sysfs; Apple Silicon is reported as unified memory and is never counted twice. An undetected GPU requires manual input. Recommendations target the machine that will run inference, not automatically the client Mac/Windows computer.
+
+The verified catalog includes HauhauCS Qwen3.5 2B/4B/9B/27B Uncensored GGUF variants, only existing Q4_K_M, Q5_K_M, Q6_K and Q8_0 files. Each entry pins its revision, SHA-256, size, source model configuration and context ceiling. The public default is 50000 tokens; memory-limited choices lower it. Maximum context is an estimate including F16 KV cache, runtime reserve and model limits, not a guaranteed benchmark. The wizard saves a plan and opens the exact model source; it does not silently download weights or provision a server.
+
+On an updated compatible Ubuntu backend, the Context button changes the active model context with rollback if startup fails. The supported agent range begins at 16384 tokens because its tool schemas and system instructions need space. Changing this shared backend affects every connected client. The interface language can be English or Ukrainian; model/source content is not machine-translated by this selector. Closing the app cancels its SSH task. The tok/s indicator reports server timings.

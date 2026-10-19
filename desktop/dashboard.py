@@ -1,16 +1,16 @@
 """Read-only dashboard data and explicit user-initiated drawing export."""
-import json,math,re,html
+import json,math,re,html,time,threading
 from urllib.request import Request,urlopen
 from urllib.parse import urlencode,urlsplit
 from xml.etree import ElementTree
 
 def fetch(url):
-    with urlopen(Request(url,headers={'User-Agent':'JARVIS/1.0'}),timeout=15) as r:
+    with urlopen(Request(url,headers={'User-Agent':'JARVIS/1.0'}),timeout=8) as r:
         raw=r.read(2_000_001)
     if len(raw)>2_000_000:raise ValueError('Відповідь сервера завелика.')
     return raw
 
-def weather(city='',latitude=None,longitude=None):
+def _weather(city='',latitude=None,longitude=None):
     label='Ваше розташування'
     if city.strip():
         data=json.loads(fetch('https://geocoding-api.open-meteo.com/v1/search?'+urlencode({'name':city[:100],'count':1,'language':'uk','format':'json'})))
@@ -22,6 +22,30 @@ def weather(city='',latitude=None,longitude=None):
     query={'latitude':latitude,'longitude':longitude,'current':'temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m','daily':'temperature_2m_max,temperature_2m_min,precipitation_probability_max','forecast_days':3,'timezone':'auto'}
     data=json.loads(fetch('https://api.open-meteo.com/v1/forecast?'+urlencode(query)))
     return {'place':label,'data':data,'source':'https://open-meteo.com/'}
+
+_WEATHER_CACHE={}
+_WEATHER_LOCK=threading.Lock()
+def weather(city='',latitude=None,longitude=None):
+    city=str(city or '').strip()
+    if not city and (latitude is None or longitude is None):
+        raise ValueError('Введіть місто або дозвольте визначення розташування.')
+    key=(city.casefold(),latitude,longitude)
+    with _WEATHER_LOCK:cached=_WEATHER_CACHE.get(key)
+    now=time.monotonic()
+    if cached and now-cached[0]<600:return dict(cached[1],cached=True)
+    failure=None
+    for attempt in range(2):
+        try:
+            result=_weather(city,latitude,longitude)
+            if not isinstance(result['data'].get('current'),dict):raise ValueError('Некоректна відповідь погодного API.')
+            with _WEATHER_LOCK:
+                if len(_WEATHER_CACHE)>=32:_WEATHER_CACHE.pop(next(iter(_WEATHER_CACHE)))
+                _WEATHER_CACHE[key]=(now,result)
+            return result
+        except (OSError,TimeoutError) as exc:failure=exc
+    if cached and now-cached[0]<3600:
+        return dict(cached[1],cached=True,stale=True,warning='API тимчасово недоступне. Показано останній прогноз, перевірте час оновлення.')
+    raise ValueError('Погодний сервіс не відповідає. Спробуйте ще раз трохи пізніше.') from failure
 
 def news():
     root=ElementTree.fromstring(fetch('https://feeds.bbci.co.uk/ukrainian/rss.xml'))

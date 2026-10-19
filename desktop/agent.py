@@ -25,11 +25,12 @@ def completion(url, messages, emit, cancelled=None, options=None):
     options=options or {}
     thinking=options.get('thinking_budget',4096)
     body = {'model': 'jarvis-qwen3.8', 'messages': messages, 'tools': TOOLS,
-            'tool_choice': 'auto', 'stream': True, 'max_tokens': options.get('max_tokens',4096)+thinking,
-            'temperature': 0.3, 'reasoning_budget_tokens': thinking,
+            'tool_choice': 'auto', 'stream': True, 'stream_options': {'include_usage':True}, 'max_tokens': options.get('max_tokens',4096)+thinking,
+            'temperature': 0.3, 'timings_per_token': True, 'reasoning_budget_tokens': thinking,
             'chat_template_kwargs': {'enable_thinking': thinking>0}}
     from .context_window import fit
-    fit(url,messages,TOOLS,body['max_tokens'],emit)
+    body['max_tokens']=fit(url,messages,TOOLS,body['max_tokens'],emit)
+    body['reasoning_budget_tokens']=min(thinking,body['max_tokens']//2)
     req = urllib.request.Request(url.rstrip('/') + '/v1/chat/completions',
                                  json.dumps(body).encode(), {'Content-Type': 'application/json'})
     content, calls, finish = '', {}, None
@@ -50,6 +51,10 @@ def completion(url, messages, emit, cancelled=None, options=None):
             event = json.loads(raw)
             if 'error' in event:
                 raise RuntimeError(str(event['error']))
+            timing=event.get('timings') or {}
+            rate=timing.get('predicted_per_second')
+            if isinstance(rate,(int,float)) and rate>0:
+                emit('metrics',{'tokens_per_second':round(rate,1),'generated_tokens':timing.get('predicted_n'), 'source':'server'})
             if not event.get('choices'):
                 continue
             choice = event['choices'][0]

@@ -1,5 +1,5 @@
 """Bound transport history and fit actual model tokens, preserving the active tool turn."""
-import json
+import json,re
 import urllib.request
 
 def retain(history, limit=2_000_000):
@@ -17,6 +17,7 @@ def fit(url,messages,tools,reserve,emit):
         req=urllib.request.Request(url.rstrip('/')+path,data=None if data is None else json.dumps(data).encode(),headers={'Content-Type':'application/json'})
         with urllib.request.urlopen(req,timeout=30) as response:return json.load(response)
     capacity=request('/props')['default_generation_settings']['n_ctx']
+    reserve=min(reserve,max(512,capacity//3))
     # Serialize conservatively with schemas and extra allowance for chat-template markers.
     def count():
         sanitized=[];images=0
@@ -31,6 +32,17 @@ def fit(url,messages,tools,reserve,emit):
     removed=False
     while count()+reserve>capacity:
         users=[i for i,m in enumerate(messages) if m['role']=='user']
-        if len(users)<2:raise ValueError('Поточний запит і файли перевищують контекст. Зменште вкладення або почніть новий чат.')
+        if len(users)<2:
+            for tag in ('projects_reference','workshop_reference'):
+                original=messages[0]['content']
+                reduced=re.sub(r'<'+tag+r'>.*?</'+tag+r'>','',original,flags=re.S)
+                if reduced!=original:
+                    messages[0]['content']=reduced
+                    emit('warning','Automatic reference omitted to fit context: '+tag+'. Read files with tools when needed.')
+                    break
+            else:raise ValueError('Current request exceeds context. Reduce attachments or increase context.')
+            continue
         del messages[1:users[1]];removed=True
     if removed:emit('warning','Контекст заповнений: найстаріші репліки пропущено; поточний запит збережено.')
+
+    return reserve

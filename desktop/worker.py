@@ -56,20 +56,27 @@ def transcribe(encoded):
 
 def main():
     cancelled = threading.Event()
-    signal.signal(signal.SIGTERM, lambda *_: cancelled.set())
+    from .lifecycle import InputSession,terminate_on_signal
+    terminate_on_signal(cancelled)
+    session=None
     def approve(description):
-        import select
         emit('confirm',description)
-        if not select.select([sys.stdin.buffer],[],[],120)[0]:return False
-        return json.loads(sys.stdin.buffer.readline(4096)).get('approved') is True and not cancelled.is_set()
+        return session.approved()
     try:
         raw = sys.stdin.buffer.readline(32_000_001)
         if len(raw) > 32_000_000: raise ValueError('Запит завеликий.')
         data = json.loads(raw)
+        session=InputSession(sys.stdin.buffer,cancelled)
         operation = data.get('operation')
         if operation == 'status':
             emit('roots', roots())
             emit('status', 'Ubuntu підключено • файли, голос і переклад на сервері')
+        elif operation == 'context_info':
+            from .model_settings import info
+            emit('context_settings',info())
+        elif operation == 'set_context':
+            from .model_settings import change
+            emit('context_changed',change(BASE,data['context'],emit))
         elif operation == 'set_roots':
             emit('roots', set_roots(data['roots']))
         elif operation == 'memory_save':

@@ -20,10 +20,13 @@ The preview EXE is not Authenticode signed; Windows may display a reputation war
 Download the `.deb`, then run from its folder:
 
 ```sh
-sudo apt install ./JARVIS-0.1.0-linux-amd64.deb
+sudo apt install ./JARVIS-0.2.0-linux-amd64.deb
 ```
 
 Launch JARVIS Community from the application menu. Dependencies are installed by apt. Other Linux distributions are not yet packaged. Uninstall with `sudo apt remove jarvis-community`.
+
+## First-run hardware setup
+The setup wizard accepts RAM and VRAM in GiB, or scans this computer on request. Enter the specs of the machine that will actually run the model. Review an estimated context and model quantization, then Save plan. This is planning: downloading and starting the backend remains a separate step.
 
 ## First connection
 1. Prepare your own Ubuntu server with the JARVIS backend in `~/gemma`, its `.desktop-server-venv`, `desktop.worker`, and a running llama-server at localhost:8080. This client release does not provision that backend.

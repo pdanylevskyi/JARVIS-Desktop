@@ -27,7 +27,11 @@ def request(settings, payload, emit, cancelled=None):
     def stop():
         while not done.wait(.1):
             if cancelled is not None and cancelled.is_set():
+                try:process.stdin.close()
+                except (OSError,ValueError):pass
                 process.terminate()
+                try:process.wait(timeout=2)
+                except subprocess.TimeoutExpired:process.kill()
                 return
     threading.Thread(target=stop, daemon=True).start()
     received_done = False
@@ -53,7 +57,7 @@ def request(settings, payload, emit, cancelled=None):
     finally:
         done.set()
         try:process.stdin.close()
-        except BrokenPipeError:pass
+        except (BrokenPipeError,ValueError):pass
         if process.poll() is None:
             process.terminate()
         process.stdout.close(); process.stderr.close()

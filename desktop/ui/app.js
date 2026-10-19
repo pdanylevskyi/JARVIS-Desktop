@@ -20,7 +20,7 @@ function stopAudio(){audioEpoch++;for(const s of audioSources){try{s.stop();}cat
 function audio(value){const epoch=audioEpoch;audioChain=audioChain.then(async()=>{if(epoch!==audioEpoch)return;primeAudio();const bytes=Uint8Array.from(atob(value),c=>c.charCodeAt(0));const decoded=await audioContext.decodeAudioData(bytes.buffer);if(epoch!==audioEpoch)return;const source=audioContext.createBufferSource();source.buffer=decoded;source.connect(audioContext.destination);const start=Math.max(audioContext.currentTime+.03,audioEnd);audioEnd=start+decoded.duration;audioSources.push(source);source.onended=()=>{audioSources=audioSources.filter(s=>s!==source);};source.start(start);speaking=true;state();}).catch(error);}
 function dialog(title,content,save,label='Зберегти'){$('modal-title').textContent=title;$('modal-content').replaceChildren(content);$('modal-save').textContent=label;$('modal-save').onclick=save;$('modal').showModal();}
 function inputLabel(text,input){const div=document.createElement('div'),label=document.createElement('label');label.textContent=text;div.append(label,input);return div;}
-function connect(){const div=document.createElement('div'),host=document.createElement('input'),key=document.createElement('input'),row=document.createElement('div'),choose=document.createElement('button');host.value=settings.host||'';key.value=settings.key||'';choose.type='button';choose.textContent='Обрати ключ';row.className='key-row';row.append(key,choose);choose.onclick=async()=>{const p=await invoke('choose_key');if(p)key.value=p;};div.append(inputLabel('SSH користувач@сервер',host),inputLabel('Ключ на цьому комп’ютері',row));dialog('ПЕРШИЙ ЗАПУСК / ВАШ СЕРВЕР UBUNTU',div,async()=>{settings={host:host.value.trim(),key:key.value.trim()};if(await invoke('configure',settings.host,settings.key))$('modal').close();},'Підключитися');}
+function connect(){const div=document.createElement('div'),host=document.createElement('input'),key=document.createElement('input'),row=document.createElement('div'),choose=document.createElement('button');host.value=settings.host||'';key.value=settings.key||'';choose.type='button';choose.textContent='Обрати ключ';row.className='key-row';row.append(key,choose);choose.onclick=async()=>{const p=await invoke('choose_key');if(p)key.value=p;};div.append(inputLabel('SSH користувач@сервер',host),inputLabel('Ключ на цьому комп’ютері',row));dialog('ПІДКЛЮЧЕННЯ / UBUNTU',div,async()=>{settings={host:host.value.trim(),key:key.value.trim()};if(await invoke('configure',settings.host,settings.key))$('modal').close();},'Підключитися');}
 $('connect').onclick=connect;
 $('folders').onclick=()=>{if(!connected)return connect();const box=document.createElement('textarea');box.value=roots.join('\n');dialog('ДОЗВОЛЕНІ ПАПКИ UBUNTU / ПО ОДНІЙ НА РЯДОК',box,async()=>{if(await invoke('set_roots',box.value))$('modal').close();});};
 $('memory').onclick=()=>{if(!connected)return connect();invoke('send','/memory edit','normal',false,false,true);};
@@ -40,11 +40,14 @@ $('send').onclick=send;$('prompt').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey|
 $('mic-button').onclick=()=>{if(!connected)return connect();primeAudio();stopAudio();invoke('record_toggle');};
 for(const id of ['speak','show-text']){const saved=localStorage.getItem(id);if(saved!==null)$(id).checked=saved==='true';$(id).onchange=()=>{localStorage.setItem(id,String($(id).checked));if(id==='speak'&&$(id).checked)primeAudio();if(id==='speak'&&!$(id).checked)stopAudio();};}
 window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
- case 'user':stopAudio();document.querySelector('.welcome')?.remove();message('ВИ','user').textContent=value.text;current=null;pending='';showText=value.show_text;generating=false;$('chat').scrollTop=$('chat').scrollHeight;break;
+ case 'user':$('token-speed').textContent='— tok/s';stopAudio();document.querySelector('.welcome')?.remove();message('ВИ','user').textContent=value.text;current=null;pending='';showText=value.show_text;generating=false;$('chat').scrollTop=$('chat').scrollHeight;break;
  case 'text':if(value){pending+=value;generating=true;state();}break;
  case 'answer_reset':pending='';if(current&&showText)current.textContent='';break;
  case 'generation_done':generating=false;state();break;
  case 'busy':busy=value;undoButton.disabled=busy;$('send').disabled=busy;$('attach').disabled=busy;$('new').disabled=busy;$('mic-button').disabled=busy;if(!busy){generating=false;status('Готово');if(autoSend){autoSend=false;send();}}state();break;
+ case 'context_settings':contextDialog(value);break;
+ case 'context_changed':status('Context: '+value.context+' tokens');break;
+ case 'metrics':$('token-speed').textContent=value.tokens_per_second+' tok/s';break;
  case 'phase':$('core-detail').textContent=value;status(value);break;
  case 'status':status(value);$('core-detail').textContent=value;break;
  case 'progress':actionNote(value);break;
@@ -66,6 +69,9 @@ window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
  case 'stop_audio':stopAudio();break;
  case 'error':case 'warning':error(value);break;
  }};};
-window.addEventListener('pywebviewready',async()=>{const boot=await invoke('bootstrap');if(boot){settings=boot.settings;roots=boot.roots;}status('Системи готові · підключіть власний Ubuntu-сервер');if(!settings.host)connect();});
+window.addEventListener('pywebviewready',async()=>{const boot=await invoke('bootstrap');if(boot){settings=boot.settings;roots=boot.roots;if(boot.needs_setup)setTimeout(()=>window.jarvisSetup?.(),100);}status('Системи готові · підключіть Ubuntu');});
 
 $('tools-catalog').onclick=async()=>{const tools=await invoke('tool_catalog');if(!tools)return;const list=document.createElement('div');for(const t of tools){const p=document.createElement('p');p.className='note';p.textContent=t.name+' — '+t.description;list.append(p);}dialog('ІНСТРУМЕНТИ JARVIS · '+tools.length,list,()=> $('modal').close(),'Закрити');};
+
+$('context-settings').onclick=()=>invoke('context_settings');
+function contextDialog(value){const box=document.createElement('div'),input=document.createElement('input'),note=document.createElement('p');input.type='number';input.min=value.minimum;input.max=value.maximum;input.step=1;input.value=value.context;note.textContent='Current: '+value.context+' tokens. Range: '+value.minimum+'–'+value.maximum+'. Applying restarts the model. Larger context uses more RAM and slows long prompts.';box.append(note,input);dialog('MODEL CONTEXT',box,async()=>{const n=Number(input.value);if(!Number.isInteger(n)||n<value.minimum||n>value.maximum)return error('Invalid context size');$('modal').close();await invoke('set_context',n);},'Apply');}

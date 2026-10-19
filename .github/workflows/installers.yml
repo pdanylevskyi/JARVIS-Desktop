@@ -20,7 +20,7 @@ jobs:
           TARGET_SHA: ${{ github.sha }}
         run: |
           tag="preview-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          gh release create "$tag" --draft --target "$TARGET_SHA" --title "JARVIS 0.1.0 preview · build ${GITHUB_RUN_NUMBER}" --notes "Preview client installers. A compatible user-owned Ubuntu backend is required. See INSTALL.md. macOS and Windows publisher signing are not configured."
+          gh release create "$tag" --draft --target "$TARGET_SHA" --title "JARVIS 0.2.0 preview · build ${GITHUB_RUN_NUMBER}" --notes "Preview client installers. A compatible user-owned Ubuntu backend is required. See INSTALL.md. macOS and Windows publisher signing are not configured."
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
   build:
     needs: prepare
@@ -32,7 +32,7 @@ jobs:
         os: [macos-14, windows-2022, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     env:
-      JARVIS_VERSION: 0.1.0
+      JARVIS_VERSION: 0.2.0
       RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
         run: choco install innosetup -y --no-progress
       - run: python -m pip install -r desktop/requirements.txt pyinstaller==6.20.0
       - run: python packaging/check_public.py
-      - run: python -m unittest desktop.test_client desktop.test_webapp
+      - run: python -m unittest desktop.test_client desktop.test_webapp desktop.test_hardware
       - run: python desktop/build.py
       - if: runner.os == 'Linux'
         run: xvfb-run -a dist/JARVIS/JARVIS --self-test
