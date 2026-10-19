@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+build/
+dist/
+release/
+*.spec
+.DS_Store
+.run/
+models/
+.env
+*.pem
+*.key
