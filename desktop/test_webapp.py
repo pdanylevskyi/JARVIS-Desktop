@@ -5,7 +5,7 @@ from desktop import webapp
 from desktop.tts import speech_text
 
 class WebClientTests(unittest.TestCase):
- def test_modes_translation_and_voice(self):
+ def test_legacy_voice_request_is_text_only(self):
   calls=[]
   def request(settings,payload,emit,cancel):
    calls.append(payload)
@@ -22,10 +22,11 @@ class WebClientTests(unittest.TestCase):
    self.assertFalse(b._busy)
    self.assertEqual(calls[0]['prompt'],'/long Тест')
    self.assertTrue(calls[0]['search_enabled'])
-   self.assertEqual(calls[1],{'operation':'synthesize','text':'Українська відповідь.'})
+   self.assertEqual(len(calls),1)
    events=list(b._events.queue)
    self.assertIn({'type':'answer_reset','value':''},events)
-   self.assertFalse(next(e['value'] for e in events if e['type']=='user')['show_text'])
+   self.assertTrue(next(e['value'] for e in events if e['type']=='user')['show_text'])
+   self.assertFalse(next(e['value'] for e in events if e['type']=='user')['voice'])
  def test_speech_omits_code_and_markup(self):
   text=speech_text('## Привіт\n**Сер**, [джерело](https://example.com).\n```python\nprint(1)\n```')
   self.assertIn('Блок коду.',text);self.assertNotIn('print',text);self.assertNotIn('https',text)

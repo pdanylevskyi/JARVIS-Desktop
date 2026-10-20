@@ -88,8 +88,7 @@ def main():
             from .transfers import emit_file
             emit_file(data['path'],roots(),emit)
         elif operation == 'synthesize':
-            from .tts import synthesize
-            synthesize(data['text'],emit,cancelled)
+            raise ValueError('Speech output is disabled. Use text responses.')
         elif operation == 'transcribe':
             emit('transcript', transcribe(data['audio']))
         elif operation == 'mac_plan':

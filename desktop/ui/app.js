@@ -16,9 +16,7 @@ function tick(){const follow=$('chat').scrollHeight-$('chat').scrollTop-$('chat'
  if(pending){const n=matchMedia('(prefers-reduced-motion: reduce)').matches?pending.length:Math.min(16,Math.max(2,Math.ceil(pending.length/20)));const part=pending.slice(0,n);pending=pending.slice(n);ensureAnswer();if(showText)current.append(document.createTextNode(part));reactor.pulse();scroll(follow);state();}
  if(speaking&&audioContext&&audioContext.currentTime>=audioEnd){speaking=false;state();}requestAnimationFrame(tick);}
 requestAnimationFrame(tick);
-function primeAudio(){if(!audioContext)audioContext=new(window.AudioContext||window.webkitAudioContext)();audioContext.resume().catch(error);}
 function stopAudio(){audioEpoch++;for(const s of audioSources){try{s.stop();}catch(_){}}audioSources=[];audioEnd=0;speaking=false;state();}
-function audio(value){const epoch=audioEpoch;audioChain=audioChain.then(async()=>{if(epoch!==audioEpoch)return;primeAudio();const bytes=Uint8Array.from(atob(value),c=>c.charCodeAt(0));const decoded=await audioContext.decodeAudioData(bytes.buffer);if(epoch!==audioEpoch)return;const source=audioContext.createBufferSource();source.buffer=decoded;source.connect(audioContext.destination);const start=Math.max(audioContext.currentTime+.03,audioEnd);audioEnd=start+decoded.duration;audioSources.push(source);source.onended=()=>{audioSources=audioSources.filter(s=>s!==source);};source.start(start);speaking=true;state();}).catch(error);}
 function dialog(title,content,save,label='Зберегти'){$('modal-title').textContent=title;$('modal-content').replaceChildren(content);$('modal-save').textContent=label;$('modal-save').onclick=save;$('modal').showModal();}
 function inputLabel(text,input){const div=document.createElement('div'),label=document.createElement('label');label.textContent=text;div.append(label,input);return div;}
 function connect(){const div=document.createElement('div'),host=document.createElement('input'),key=document.createElement('input'),row=document.createElement('div'),choose=document.createElement('button');host.value=settings.host||'';key.value=settings.key||'';choose.type='button';choose.textContent='Обрати ключ';row.className='key-row';row.append(key,choose);choose.onclick=async()=>{const p=await invoke('choose_key');if(p)key.value=p;};div.append(inputLabel('SSH користувач@сервер',host),inputLabel('Ключ на цьому комп’ютері',row));dialog('ПІДКЛЮЧЕННЯ / UBUNTU',div,async()=>{settings={host:host.value.trim(),key:key.value.trim()};if(await invoke('configure',settings.host,settings.key))$('modal').close();},'Підключитися');}
@@ -36,10 +34,9 @@ function hideCopyMenu(){copyMenu.hidden=true;}
 $('chat').addEventListener('contextmenu',e=>{e.preventDefault();const selected=window.getSelection().toString(),answer=e.target.closest('.message')?.querySelector('.body')?.textContent||'';copyMenu.replaceChildren();for(const [label,text] of [['Копіювати весь діалог',$('chat').innerText],['Копіювати виділене / відповідь',selected||answer]]){const button=document.createElement('button');button.textContent=label;button.disabled=!text;button.onclick=()=>{hideCopyMenu();copyText(text).catch(error);};copyMenu.append(button);}copyMenu.hidden=false;copyMenu.style.left=Math.max(0,Math.min(e.clientX,innerWidth-copyMenu.offsetWidth))+'px';copyMenu.style.top=Math.max(0,Math.min(e.clientY,innerHeight-copyMenu.offsetHeight))+'px';});
 document.addEventListener('pointerdown',e=>{if(!copyMenu.contains(e.target))hideCopyMenu();});document.addEventListener('keydown',e=>{if(e.key==='Escape')hideCopyMenu();});$('chat').addEventListener('scroll',hideCopyMenu);window.addEventListener('resize',hideCopyMenu);
 for(const b of document.querySelectorAll('[data-mode]'))b.onclick=()=>{mode=b.dataset.mode;for(const x of document.querySelectorAll('[data-mode]')){x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));}};
-async function send(){if(busy||recording)return;if(!connected)return connect();if($('speak').checked)primeAudio();generating=true;state();const ok=await invoke('send',$('prompt').value,mode,$('search').checked,$('speak').checked,$('show-text').checked,$('mac-agent').checked);if(ok){$('prompt').value='';document.querySelector('[data-mode="normal"]').click();}else{generating=false;state();}}
+async function send(){if(busy||recording)return;if(!connected)return connect();generating=true;state();const ok=await invoke('send',$('prompt').value,mode,$('search').checked,false,true,$('mac-agent').checked);if(ok){$('prompt').value='';document.querySelector('[data-mode="normal"]').click();}else{generating=false;state();}}
 $('send').onclick=send;$('prompt').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();send();}};
 $('mic-button').onclick=()=>{if(!connected)return connect();primeAudio();stopAudio();invoke('record_toggle');};
-for(const id of ['speak','show-text']){const saved=localStorage.getItem(id);if(saved!==null)$(id).checked=saved==='true';$(id).onchange=()=>{localStorage.setItem(id,String($(id).checked));if(id==='speak'&&$(id).checked)primeAudio();if(id==='speak'&&!$(id).checked)stopAudio();};}
 window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
  case 'user':$('token-speed').textContent='— tok/s';stopAudio();document.querySelector('.welcome')?.remove();message('ВИ','user').textContent=value.text;current=null;pending='';showText=value.show_text;generating=false;$('chat').scrollTop=$('chat').scrollHeight;break;
  case 'text':if(value){pending+=value;generating=true;state();}break;
@@ -48,7 +45,7 @@ window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
  case 'busy':busy=value;undoButton.disabled=busy;$('send').disabled=busy;$('attach').disabled=busy;$('new').disabled=busy;$('mic-button').disabled=busy||localTextOnly;if(!busy){generating=false;status('Готово');if(autoSend){autoSend=false;send();}}state();break;
  case 'context_settings':contextDialog(value);break;
  case 'context_changed':status('Context: '+value.context+' tokens');break;
- case 'capabilities':localTextOnly=value.local_text;for(const id of ['mic-button','mac-agent','speak','memory','folders'])$(id).disabled=localTextOnly;if(localTextOnly){$('speak').checked=false;$('mac-agent').checked=false;}break;
+ case 'capabilities':localTextOnly=value.local_text;for(const id of ['mic-button','mac-agent','memory','folders'])$(id).disabled=localTextOnly;if(localTextOnly){$('mac-agent').checked=false;}break;
  case 'metrics':$('token-speed').textContent=value.tokens_per_second+' tok/s';break;
  case 'phase':$('core-detail').textContent=value;status(value);break;
  case 'status':status(value);$('core-detail').textContent=value;break;
@@ -67,7 +64,7 @@ window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
  case 'memory_edit':{memoryBefore=value;const box=document.createElement('textarea');box.value=value;dialog('ПАМ’ЯТЬ МАЙСТЕРНІ / UBUNTU',box,async()=>{if(await invoke('save_memory',memoryBefore,box.value))$('modal').close();});break;}
  case 'downloaded':{const p=document.createElement('p');p.className='note';p.textContent='Завантажено на цей комп’ютер: '+value;$('chat').append(p);status('Файл у Downloads');break;}
  case 'saved':{const p=document.createElement('p');p.className='note';p.textContent='Файл на Ubuntu: '+value;$('chat').append(p);break;}
- case 'audio':if($('speak').checked)audio(value);break;
+ case 'audio':break;
  case 'stop_audio':stopAudio();break;
  case 'error':case 'warning':error(value);break;
  }};};

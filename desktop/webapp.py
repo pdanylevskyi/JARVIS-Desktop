@@ -160,7 +160,7 @@ class Bridge:
  def save_memory(self,before,after):return self._launch({'operation':'memory_save','before':before,'after':after})
  def send(self,prompt,mode,search,voice,text,mac_agent=False):
   if self._busy or self._recording:return False
-  if not voice and not text:raise ValueError('Увімкніть голос або текст.')
+  voice=False;text=True  # Speech output is disabled; retain legacy call compatibility.
   if not isinstance(prompt,str) or len(prompt)>12000:raise ValueError('Максимум 12 000 символів.')
   prompt=prompt.strip() or ('Прочитай прикріплені файли та поясни їхній зміст українською.' if self._attachments else 'Опиши це зображення українською.' if self._image else '')
   if not prompt:return False
@@ -222,8 +222,8 @@ class Bridge:
   self._cancel.clear();self._emit('busy',True)
   def work():
    formatter=TerminalFormatter(live=True);answer='';final_answer=None;failed=False;downloads=[]
-   from .speech_stream import SpeechStream
-   speech=SpeechStream(self._settings,self._emit,self._cancel) if speak and payload['operation']=='chat' else None
+
+   speech=None  # Never synthesize output, including calls from older clients.
    def receive(kind,value):
     nonlocal formatter,answer,final_answer,failed
     if kind=='attachments_received':

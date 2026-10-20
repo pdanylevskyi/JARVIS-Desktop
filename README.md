@@ -1,5 +1,8 @@
 # JARVIS Community Preview
 
+Speech output is currently disabled. Responses are text-only; microphone input remains available. Existing voice-output preferences are ignored.
+
+
 A cyan/black desktop AI interface for Windows, macOS and Linux. Chat, voice input, file attachments, workshop tools, news, weather and drawing workspace. Run a text model locally, or connect to **your own** compatible JARVIS Ubuntu backend over SSH.
 
 This is a clean, independent client repository: no private Git history, inventory, credentials, model weights or default server address. The original personal installation is unchanged.
