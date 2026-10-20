@@ -12,11 +12,14 @@ def retain(history, limit=2_000_000):
     while result and result[0].get('role')!='user':result.pop(0)
     return result
 
-def fit(url,messages,tools,reserve,emit,api_key=None):
+def fit(url,messages,tools,reserve,emit,api_key=None,context_limit=None):
     def request(path,data=None):
         req=urllib.request.Request(url.rstrip('/')+path,data=None if data is None else json.dumps(data).encode(),headers={'Content-Type':'application/json',**({'Authorization':'Bearer '+api_key} if api_key else {})})
         with urllib.request.urlopen(req,timeout=30) as response:return json.load(response)
     capacity=request('/props')['default_generation_settings']['n_ctx']
+    from .model_settings import configured
+    limit=context_limit if context_limit is not None else configured()
+    if type(limit) is int and limit>=16384:capacity=min(capacity,limit)
     reserve=min(reserve,max(512,capacity//3))
     # Serialize conservatively with schemas and extra allowance for chat-template markers.
     def count():

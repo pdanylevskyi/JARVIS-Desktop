@@ -97,7 +97,7 @@ def ensure(emit,cancel):
         _URL=f'http://127.0.0.1:{port}';_KEY=secrets.token_urlsafe(32)
         profile=plan.get('profile',{});weight=plan['model']['bytes']
         gpu=profile.get('unified') or weight+max(1024**3,weight*.15)<max(0,profile.get('vram_gib',0)*.85-1)*1024**3
-        args=[str(exe),'-m',str(DATA/'models'/plan['model']['filename']),'--host','127.0.0.1','--port',str(port),'--api-key',_KEY,'--alias','jarvis-qwen3.8','-c',str(plan['context']),'-ngl','99' if gpu else '0','--no-kv-offload','--parallel','1','--jinja','--no-webui']
+        args=[str(exe),'-m',str(DATA/'models'/plan['model']['filename']),'--host','127.0.0.1','--port',str(port),'--api-key',_KEY,'--alias','jarvis-qwen3.8','-c',str(plan.get('allocated_context',plan['context'])),'-ngl','99' if gpu else '0','--no-kv-offload','--parallel','1','--jinja','--no-webui']
         env=os.environ.copy()
         if platform.system()=='Linux':env['LD_LIBRARY_PATH']=':'.join({str(p.parent) for p in folder.rglob('*.so*')})+':'+env.get('LD_LIBRARY_PATH','')
         emit('status','Loading local model…')
@@ -126,16 +126,19 @@ def request(payload,emit,cancel):
         if operation=='set_context':
             value=payload['context']
             if type(value) is not int or not 16384<=value<=min(info['n_ctx_train'],262144):raise ValueError('Invalid context size.')
-            path=DATA/'model-plan.json';before=path.read_text();plan=json.loads(before);plan['context']=value;path.write_text(json.dumps(plan));stop()
+            path=DATA/'model-plan.json';before=path.read_text();plan=json.loads(before);plan['context']=value;plan['allocated_context']=max(info['n_ctx'],value);path.write_text(json.dumps(plan))
+            if value<=info['n_ctx']:
+                emit('context_changed',{'context':value,'allocated':info['n_ctx'],'minimum':16384,'maximum':min(info['n_ctx_train'],262144)});emit('done');return
+            stop()
             try:ensure(emit,cancel)
             except Exception:stop();path.write_text(before);raise ValueError('Context failed; previous setting restored. Reconnect to reload.')
             info=get('/v1/models')['data'][0]['meta']
-        emit('context_changed' if operation=='set_context' else 'context_settings',{'context':info['n_ctx'],'minimum':16384,'maximum':min(info['n_ctx_train'],262144)})
+        emit('context_changed' if operation=='set_context' else 'context_settings',{'context':min(info['n_ctx'],json.loads((DATA/'model-plan.json').read_text())['context']),'allocated':info['n_ctx'],'minimum':16384,'maximum':min(info['n_ctx_train'],262144)})
     elif operation=='chat':
         prompt=payload['prompt'];mode='normal'
         if prompt.startswith(('/flash ','/long ')):mode,prompt=prompt[1:].split(' ',1)
         elif prompt.startswith('/') and not prompt.startswith('/search '):raise ValueError('Local mode supports /flash, /long and /search. Advanced server commands require SSH.')
-        options={'api_key':_KEY,'thinking_budget':{'normal':4096,'flash':0,'long':8192}[mode],'max_tokens':8192,'context':'\nLocal mode: files stay on this computer. Do not claim Ubuntu was contacted. Python execution, 3D generation and image analysis are unavailable here; never claim they succeeded.','approve':lambda d:emit('confirm',d) is True}
+        options={'context_limit':json.loads((DATA/'model-plan.json').read_text())['context'],'api_key':_KEY,'thinking_budget':{'normal':4096,'flash':0,'long':8192}[mode],'max_tokens':8192,'context':'\nLocal mode: files stay on this computer. Do not claim Ubuntu was contacted. Python execution, 3D generation and image analysis are unavailable here; never claim they succeeded.','approve':lambda d:emit('confirm',d) is True}
         from .commands import prepare
         prepared=prepare(prompt,DATA,[str(ROOT)],emit,search_enabled=payload.get('search_enabled'),include_memory=False)
         if prepared:prompt,extra=prepared;options['context']+=extra['context']

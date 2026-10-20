@@ -7,7 +7,7 @@ def reference(root):
     root=Path(root)
     if not root.is_dir() or root.is_symlink():return 'Папку projects не знайдено.'
     files=Files([str(root)],owner=True)
-    rows=[];remaining=180000;seen=0
+    rows=[];remaining=12000;seen=0
     for folder,dirs,names in os.walk(root,followlinks=False):
         dirs[:]=sorted(d for d in dirs if not d.startswith('.') and d not in ('node_modules','__pycache__','venv') and not (Path(folder)/d).is_symlink())
         for name in sorted(names):

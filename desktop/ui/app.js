@@ -1,3 +1,4 @@
+let transcribing=false;
 'use strict';
 const $=id=>document.getElementById(id),reactor=window.reactor;
 let localTextOnly=false;
@@ -42,7 +43,7 @@ window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
  case 'text':if(value){pending+=value;generating=true;state();}break;
  case 'answer_reset':pending='';if(current&&showText)current.textContent='';break;
  case 'generation_done':generating=false;state();break;
- case 'busy':busy=value;undoButton.disabled=busy;$('send').disabled=busy;$('attach').disabled=busy;$('new').disabled=busy;$('mic-button').disabled=busy||localTextOnly;if(!busy){generating=false;status('Готово');if(autoSend){autoSend=false;send();}}state();break;
+ case 'busy':busy=value;undoButton.disabled=busy;$('send').disabled=busy;$('attach').disabled=busy;$('new').disabled=busy;$('mic-button').disabled=transcribing||localTextOnly;if(!busy){generating=false;status('Готово');if(autoSend){autoSend=false;send();}}state();break;
  case 'context_settings':contextDialog(value);break;
  case 'context_changed':status('Context: '+value.context+' tokens');break;
  case 'capabilities':localTextOnly=value.local_text;for(const id of ['mic-button','mac-agent','memory','folders'])$(id).disabled=localTextOnly;if(localTextOnly){$('mac-agent').checked=false;}break;
@@ -56,7 +57,8 @@ window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
  case 'confirm_closed':if(confirmation){confirmation=null;$('modal').close();}break;
  case 'connected':connected=value;$('connection-dot').textContent=value?'●':'○';$('core-detail').textContent=value?'Ubuntu підключено':'Немає з’єднання';break;
  case 'roots':roots=value;break;
- case 'transcript':if(value.trim()){$('prompt').value+=($('prompt').value?' ':'')+value;autoSend=true;status('Голос розпізнано — надсилаю…');}else status('Мовлення не розпізнано.');break;
+ case 'transcript':$('prompt').value+=($('prompt').value.trim()?'\n':'')+value;$('prompt').focus();break;
+ case 'transcribing':transcribing=value;$('mic-button').disabled=value||localTextOnly;break;
  case 'recording':recording=value;$('mic-button').classList.toggle('recording',value);$('mic-button').setAttribute('aria-label',value?'Завершити запис':'Почати запис');$('send').disabled=value||busy;if(!value){reactor.audio(0);$('mic-time').textContent='AUDIO · STANDBY';}state();break;
  case 'level':reactor.audio(value.level);$('mic-time').textContent='ЗАПИС · '+value.seconds.toFixed(1)+' / 60 c';break;
  case 'attachment':$('attachment').hidden=!value;$('attachment').querySelector('span').textContent=value?'Прикріплено: '+value:'';break;
@@ -82,7 +84,7 @@ function contextDialog(value){
  slider.setAttribute('aria-label','Context tokens');input.setAttribute('aria-label','Exact context tokens');
  current.textContent=(document.documentElement.lang==='uk'?'Зараз застосовано: ':'Currently applied: ')+active.toLocaleString()+' tokens';
  limits.textContent=minimum.toLocaleString()+' — '+maximum.toLocaleString();
- note.className='note';note.textContent='Apply restarts the shared model. More context needs more memory. If loading fails, the previous setting is restored.';
+ note.className='note';note.textContent='Context applies immediately within allocated memory. Increasing allocation reloads the model; dictation stays available. Lowering the limit does not free allocated RAM.';
  slider.oninput=()=>{input.value=slider.value;input.setCustomValidity('');};
  input.oninput=()=>{input.setCustomValidity('');if(input.value!==''&&input.checkValidity())slider.value=input.value;};
  box.append(current,slider,limits,inputLabel('Exact context tokens',input),note);

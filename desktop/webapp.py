@@ -15,7 +15,7 @@ class Bridge:
   self._busy=False;self._connected=False;self._history=[];self._image=None;self._attachments=[];self._roots=[]
   self._recording=None;self._pcm=[];self._level=0.;self._started=0.;self._lock=threading.Lock()
   self._approval=threading.Event();self._approved=False;self._approval_id=None
-  self._last_voice=0.;self._heard_voice=False
+  self._last_voice=0.;self._heard_voice=False;self._transcribing=False;self._voice_cancel=threading.Event()
  def confirm_action(self,request_id,approved):
   if request_id!=self._approval_id:return False
   self._approved=approved is True;self._approval.set();return True
@@ -281,14 +281,24 @@ class Bridge:
   threading.Thread(target=work,daemon=True).start();return True
  def stop(self):
   self._cancel.set();self._emit('stop_audio')
+ def _transcribe_audio(self,pcm):
+  self._transcribing=True;self._voice_cancel.clear();self._emit('transcribing',True)
+  def work():
+   try:
+    def receive(kind,value):
+     if kind in ('transcript','error','warning'):self._emit(kind,value)
+    remote.request(dict(self._settings),{'operation':'transcribe','audio':base64.b64encode(pcm).decode()},receive,self._voice_cancel)
+   except Exception as exc:self._emit('error',str(exc))
+   finally:self._transcribing=False;self._emit('transcribing',False)
+  threading.Thread(target=work,daemon=True).start();return True
  def record_toggle(self):
-  if self._busy:return False
+  if self._transcribing:return False
   if not self._connected:raise ValueError('Спочатку підключіть Ubuntu.')
   if self._recording:
    stream=self._recording;self._recording=None;stream.stop();stream.close()
    self._level=0.;self._emit('recording',False)
    pcm=b''.join(self._pcm);self._pcm=[]
-   return self._launch({'operation':'transcribe','audio':base64.b64encode(pcm).decode()})
+   return self._transcribe_audio(pcm)
   import sounddevice as sd
   self._emit('stop_audio');self._pcm=[]
   self._heard_voice=False;self._last_voice=time.monotonic()
@@ -318,7 +328,7 @@ class Bridge:
     except Exception:
      if self._closed.is_set():break
  def _close(self):
-  self._closed.set();self._cancel.set();self._approval.set()
+  self._closed.set();self._cancel.set();self._voice_cancel.set();self._approval.set()
   from .local_runtime import stop
   stop()
   if self._recording:self._recording.stop();self._recording.close();self._recording=None

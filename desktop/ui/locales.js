@@ -172,5 +172,6 @@ window.jarvisLocales = {
     "Save plan": "Зберегти план",
     "Enter the specs of the computer that will run the model. This release is an SSH client; scanning this computer does not install an AI server. Public default: 50,000 context tokens.": "Введіть характеристики комп’ютера, де працюватиме модель. Ця версія — SSH-клієнт; сканування не встановлює сервер ШІ. Стандарт: 50 000 токенів.",
     "No supported model fits these estimates. Check the memory values.": "За цією оцінкою жодна модель не вміщується. Перевірте обсяги пам’яті."
-  }
+  },
+"Context applies immediately within allocated memory. Increasing allocation reloads the model; dictation stays available. Lowering the limit does not free allocated RAM.": "У межах виділеної пам’яті контекст змінюється одразу. Збільшення виділення перезавантажує модель; диктування доступне. Зменшення ліміту не звільняє вже виділену RAM."
 };
