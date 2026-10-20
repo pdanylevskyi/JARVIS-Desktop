@@ -37,7 +37,7 @@ document.addEventListener('pointerdown',e=>{if(!copyMenu.contains(e.target))hide
 for(const b of document.querySelectorAll('[data-mode]'))b.onclick=()=>{mode=b.dataset.mode;for(const x of document.querySelectorAll('[data-mode]')){x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));}};
 async function send(){if(busy||recording)return;if(!connected)return connect();generating=true;state();const ok=await invoke('send',$('prompt').value,mode,$('search').checked,false,true,$('mac-agent').checked);if(ok){$('prompt').value='';document.querySelector('[data-mode="normal"]').click();}else{generating=false;state();}}
 $('send').onclick=send;$('prompt').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();send();}};
-$('mic-button').onclick=()=>{if(!connected)return connect();primeAudio();stopAudio();invoke('record_toggle');};
+$('mic-button').onclick=()=>{if(!connected)return connect();stopAudio();invoke('record_toggle');};
 window.jarvisEvents=events=>{for(const {type,value} of events){switch(type){
  case 'user':$('token-speed').textContent='— tok/s';stopAudio();document.querySelector('.welcome')?.remove();message('ВИ','user').textContent=value.text;current=null;pending='';showText=value.show_text;generating=false;$('chat').scrollTop=$('chat').scrollHeight;break;
  case 'text':if(value){pending+=value;generating=true;state();}break;
