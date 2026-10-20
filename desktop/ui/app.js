@@ -76,4 +76,25 @@ window.addEventListener('pywebviewready',async()=>{const boot=await invoke('boot
 $('tools-catalog').onclick=async()=>{const tools=await invoke('tool_catalog');if(!tools)return;const list=document.createElement('div');for(const t of tools){const p=document.createElement('p');p.className='note';p.textContent=t.name+' — '+t.description;list.append(p);}dialog('ІНСТРУМЕНТИ JARVIS · '+tools.length,list,()=> $('modal').close(),'Закрити');};
 
 $('context-settings').onclick=()=>invoke('context_settings');
-function contextDialog(value){const box=document.createElement('div'),input=document.createElement('input'),note=document.createElement('p');input.type='number';input.min=value.minimum;input.max=value.maximum;input.step=1;input.value=value.context;note.textContent='Current: '+value.context+' tokens. Range: '+value.minimum+'–'+value.maximum+'. Applying restarts the model. Larger context uses more RAM and slows long prompts.';box.append(note,input);dialog('MODEL CONTEXT',box,async()=>{const n=Number(input.value);if(!Number.isInteger(n)||n<value.minimum||n>value.maximum)return error('Invalid context size');$('modal').close();await invoke('set_context',n);},'Apply');}
+function contextDialog(value){
+ const minimum=Number(value.minimum),maximum=Number(value.maximum),active=Number(value.context);
+ if(!Number.isInteger(minimum)||!Number.isInteger(maximum)||minimum<1||maximum<minimum||!Number.isInteger(active))return error('Invalid context range');
+ const box=document.createElement('div'),slider=document.createElement('input'),input=document.createElement('input'),note=document.createElement('p'),current=document.createElement('p'),limits=document.createElement('p');
+ box.className='context-controls';slider.id='context-slider';slider.type='range';input.id='context-number';input.type='number';
+ for(const control of [slider,input]){control.min=minimum;control.max=maximum;control.step=1;control.value=Math.max(minimum,Math.min(maximum,active));}
+ slider.setAttribute('aria-label','Context tokens');input.setAttribute('aria-label','Exact context tokens');
+ current.textContent=(document.documentElement.lang==='uk'?'Зараз застосовано: ':'Currently applied: ')+active.toLocaleString()+' tokens';
+ limits.textContent=minimum.toLocaleString()+' — '+maximum.toLocaleString();
+ note.className='note';note.textContent='Apply restarts the shared model. More context needs more memory. If loading fails, the previous setting is restored.';
+ slider.oninput=()=>{input.value=slider.value;input.setCustomValidity('');};
+ input.oninput=()=>{input.setCustomValidity('');if(input.value!==''&&input.checkValidity())slider.value=input.value;};
+ box.append(current,slider,limits,inputLabel('Exact context tokens',input),note);
+ dialog('MODEL CONTEXT',box,async()=>{
+  const n=Number(input.value);
+  if(input.value===''||!Number.isInteger(n)||n<minimum||n>maximum){input.setCustomValidity('Enter a whole number within the displayed range.');input.reportValidity();return;}
+  if(busy)return error('Finish or stop the current task first.');
+  if(n===active){$('modal').close();return;}
+  const accepted=await invoke('set_context',n);
+  if(accepted)$('modal').close();
+ },'Apply');
+}

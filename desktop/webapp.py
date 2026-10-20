@@ -123,7 +123,8 @@ class Bridge:
   return self._launch({'operation':'context_info'})
  def set_context(self,value):
   if not self._connected:raise ValueError('Connect to Ubuntu first.')
-  return self._launch({'operation':'set_context','context':int(value)})
+  if type(value) is not int:raise ValueError('Context must be a whole number.')
+  return self._launch({'operation':'set_context','context':value})
  def choose_key(self):
   import webview
   result=self._window.create_file_dialog(webview.FileDialog.OPEN,allow_multiple=False)
